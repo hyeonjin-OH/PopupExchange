@@ -3,13 +3,13 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "sonner";
-import Header from '@/components/Header';
+import Navbar from "@/components/Navbar";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "팝업 굿즈 교환",
-  description: "팝업스토어 굿즈 교환 및 거래 플랫폼",
+  title: "팝업스토어",
+  description: "팝업스토어 거래 플랫폼",
 };
 
 export default function RootLayout({
@@ -19,9 +19,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+          rel="stylesheet"
+        />
+      </head>
       <body className={inter.className}>
         <AuthProvider>
-          <Header />
+          <Navbar />
           {children}
           <Toaster />
         </AuthProvider>
