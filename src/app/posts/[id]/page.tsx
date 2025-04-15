@@ -7,12 +7,15 @@ import { db } from '@/lib/firebase';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import ChatRoom from '@/components/chat/ChatRoom';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Post {
-  id: string;  // Keep this for internal use only
+  id: string;
   title: string;
   content: string;
   author: string;
+  authorId: string;
   createdAt: string;
   tradeType: string;
   tradeMethod: string;
@@ -23,18 +26,22 @@ interface Post {
 export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     const fetchPost = async () => {
       try {
         const postDoc = await getDoc(doc(db, 'posts', params.id as string));
         if (postDoc.exists()) {
+          const data = postDoc.data();
           setPost({
             id: postDoc.id,
-            ...postDoc.data()
+            ...data,
+            authorId: data.authorId || data.author,
           } as Post);
         }
       } catch (error) {
@@ -67,9 +74,9 @@ export default function PostDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <Card className="bg-white overflow-hidden">
+    <main className="min-h-screen bg-gray-100">
+      <div className="container mx-auto px-4 py-8">
+        <Card className="max-w-4xl mx-auto">
           {post.images && post.images.length > 0 && (
             <div className="relative aspect-video bg-gray-100">
               <Image
@@ -126,22 +133,41 @@ export default function PostDetailPage() {
               <p className="text-gray-800 whitespace-pre-wrap">{post.content}</p>
             </div>
 
-            <div className="flex justify-end gap-3 mt-8">
+            <div className="mt-8 flex justify-between">
               <Button
                 variant="outline"
                 onClick={() => router.push('/posts')}
               >
                 목록으로
               </Button>
-              <Button
-                className="bg-[#FFE34F] hover:bg-[#FFD700] text-black"
-                onClick={() => {}} // TODO: 채팅하기 기능 구현
-              >
-                채팅하기
-              </Button>
+              <div className="flex space-x-4">
+                {user?.uid === post?.authorId ? (
+                  <Button
+                    className="bg-blue-500 hover:bg-blue-600 text-white"
+                    onClick={() => router.push(`/posts/${post.id}/edit`)}
+                  >
+                    수정하기
+                  </Button>
+                ) : (
+                  <Button
+                    className="bg-[#FFE34F] hover:bg-[#FFD700] text-black"
+                    onClick={() => setShowChat(true)}
+                  >
+                    채팅하기
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </Card>
+
+        {showChat && post && (
+          <ChatRoom
+            postId={post.id}
+            postAuthorId={post.authorId}
+            onClose={() => setShowChat(false)}
+          />
+        )}
       </div>
     </main>
   );
