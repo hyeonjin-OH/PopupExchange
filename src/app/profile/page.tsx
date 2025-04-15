@@ -98,74 +98,86 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-100">
-      <div className="container mx-auto px-4 py-8">
-        <Card className="max-w-4xl mx-auto p-6">
-          <h1 className="text-2xl font-bold mb-6">내 정보</h1>
-          
-          <Tabs defaultValue="posts" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="posts">내 게시글</TabsTrigger>
-              <TabsTrigger value="chats">채팅 목록</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="posts" className="mt-6">
-              {posts.length === 0 ? (
-                <p className="text-gray-500">작성한 게시글이 없습니다.</p>
-              ) : (
+    <main className="min-h-screen bg-[#F8F9FA]">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <Card className="bg-white p-6 sm:p-8 rounded-2xl">
+          <div className="space-y-8">
+            {/* 사용자 정보 */}
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                <span className="text-2xl text-gray-600">
+                  {user?.username?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">{user?.username}</h1>
+                <p className="text-gray-500">{user?.email}</p>
+              </div>
+            </div>
+
+            {/* 내 게시글 */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold">내 게시글</h2>
+              {posts.length > 0 ? (
                 <div className="space-y-4">
-                  {posts.map(post => (
-                    <Card key={post.id} className="p-4 hover:bg-gray-50 cursor-pointer"
-                      onClick={() => router.push(`/posts/${post.id}`)}>
+                  {posts.map((post) => (
+                    <Card key={post.id} className="p-4 hover:bg-gray-50 transition-colors">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h3 className="font-semibold">{post.title}</h3>
-                          <p className="text-sm text-gray-500 mt-1">
+                          <h3 className="font-medium">{post.title}</h3>
+                          <p className="text-sm text-gray-500">
                             {new Date(post.createdAt).toLocaleDateString()}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-1 text-xs rounded-full bg-gray-100">
-                            {post.tradeType}
-                          </span>
-                          {post.price && (
-                            <span className="font-semibold">
-                              {post.price.toLocaleString()}원
-                            </span>
-                          )}
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => router.push(`/posts/${post.id}`)}
+                        >
+                          보기
+                        </Button>
                       </div>
                     </Card>
                   ))}
                 </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="chats" className="mt-6">
-              {chats.length === 0 ? (
-                <p className="text-gray-500">진행 중인 채팅이 없습니다.</p>
               ) : (
+                <p className="text-gray-500">등록된 게시글이 없습니다.</p>
+              )}
+            </div>
+
+            {/* 구분선 */}
+            <div className="border-t border-gray-200 my-12"></div>
+
+            {/* 채팅 목록 */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold">채팅 목록</h2>
+              {chats.length > 0 ? (
                 <div className="space-y-4">
-                  {chats.map(chat => (
-                    <Card key={chat.id} className="p-4 hover:bg-gray-50 cursor-pointer"
-                      onClick={() => router.push(`/posts/${chat.postId}`)}>
+                  {chats.map((chat) => (
+                    <Card key={chat.id} className="p-4 hover:bg-gray-50 transition-colors">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h3 className="font-semibold">{chat.postTitle}</h3>
-                          <p className="text-sm text-gray-500 mt-1">
-                            {chat.lastMessage}
+                          <h3 className="font-medium">{chat.postTitle}</h3>
+                          <p className="text-sm text-gray-500">
+                            마지막 메시지: {new Date(chat.lastMessage?.timestamp || chat.createdAt).toLocaleString()}
                           </p>
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {new Date(chat.lastMessageTime).toLocaleTimeString()}
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => router.push(`/posts/${chat.postId}`)}
+                        >
+                          채팅하기
+                        </Button>
                       </div>
                     </Card>
                   ))}
                 </div>
+              ) : (
+                <p className="text-gray-500">진행 중인 채팅이 없습니다.</p>
               )}
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </Card>
       </div>
     </main>
