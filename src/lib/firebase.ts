@@ -1,8 +1,8 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, arrayUnion, addDoc, deleteDoc, orderBy } from "firebase/firestore";
 import { getStorage } from 'firebase/storage';
-import { getDatabase, ref, set, get, push } from 'firebase/database';
+import { Message } from '@/types/chat';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDTONG9yWXJEC4Sc4v8RNRLLlTbeTby5Ws",
@@ -11,8 +11,7 @@ const firebaseConfig = {
   storageBucket: "popup-exchange.firebasestorage.app",
   messagingSenderId: "228923985377",
   appId: "1:228923985377:web:eb2976dcf2b2a0507cd6a0",
-  measurementId: "G-D5JFMKZFFY",
-  databaseURL: "https://popup-exchange-default-rtdb.firebaseio.com"
+  measurementId: "G-D5JFMKZFFY"
 };
 
 // Initialize Firebase
@@ -20,7 +19,6 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-export const rtdb = getDatabase(app);
 
 // 아이디 중복 검사
 export const checkUsernameAvailability = async (username: string) => {
@@ -129,8 +127,8 @@ export const signIn = async (username: string, password: string) => {
 export const createChatRoom = async (postId: string, userId: string) => {
   try {
     const chatId = `${postId}_${userId}`;
-    const chatRef = ref(rtdb, `chats/${chatId}`);
-    await set(chatRef, {
+    const chatRef = doc(db, 'chats', chatId);
+    await setDoc(chatRef, {
       postId,
       userId,
       createdAt: new Date().toISOString(),
@@ -145,8 +143,8 @@ export const createChatRoom = async (postId: string, userId: string) => {
 export const getChatRoom = async (postId: string, userId: string) => {
   try {
     const chatId = `${postId}_${userId}`;
-    const chatRef = ref(rtdb, `chats/${chatId}`);
-    const snapshot = await get(chatRef);
+    const chatRef = doc(db, 'chats', chatId);
+    const snapshot = await getDoc(chatRef);
     if (snapshot.exists()) {
       return chatId;
     }
@@ -159,13 +157,12 @@ export const getChatRoom = async (postId: string, userId: string) => {
 
 export const saveChatMessage = async (chatId: string, message: any) => {
   try {
-    const chatRef = ref(rtdb, `chats/${chatId}/messages`);
-    const newMessageRef = push(chatRef);
-    await set(newMessageRef, {
+    const chatRef = doc(db, 'chats', chatId, 'messages', message.id);
+    await setDoc(chatRef, {
       ...message,
       timestamp: new Date().toISOString(),
     });
-    return newMessageRef.key;
+    return message.id;
   } catch (error) {
     console.error('Error saving chat message:', error);
     throw error;
@@ -174,19 +171,17 @@ export const saveChatMessage = async (chatId: string, message: any) => {
 
 export const getChatMessages = async (chatId: string) => {
   try {
-    const messagesRef = ref(rtdb, `chats/${chatId}/messages`);
-    const snapshot = await get(messagesRef);
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      return Object.entries(data).map(([id, message]: [string, any]) => ({
-        id,
-        text: message.text,
-        sender: message.sender,
-        senderId: message.senderId,
-        timestamp: message.timestamp,
-      }));
-    }
-    return [];
+    const messagesRef = collection(db, 'chats', chatId, 'messages');
+    const querySnapshot = await getDocs(messagesRef);
+    const messages: Message[] = [];
+    querySnapshot.forEach((doc) => {
+      const message = doc.data() as Message;
+      messages.push({
+        ...message,
+        id: doc.id,
+      });
+    });
+    return messages;
   } catch (error) {
     console.error('Error getting chat messages:', error);
     return [];
