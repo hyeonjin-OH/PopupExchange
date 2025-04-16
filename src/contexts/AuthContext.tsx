@@ -1,13 +1,19 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
+import { User as FirebaseUser, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
+interface AppUser extends FirebaseUser {
+  username?: string;
+  role?: 'user' | 'admin';
+}
+
 interface AuthContextType {
-  user: User | null;
+  user: AppUser | null;
   username: string | null;
+  role: 'user' | 'admin' | null;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -15,27 +21,42 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   username: null,
+  role: null,
   loading: true,
   signOut: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [username, setUsername] = useState<string | null>(null);
+  const [role, setRole] = useState<'user' | 'admin' | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUser(user);
-        // 사용자 정보 가져오기
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        let appUserData: AppUser = { ...firebaseUser };
+
         if (userDoc.exists()) {
-          setUsername(userDoc.data().username);
+          const firestoreData = userDoc.data();
+          appUserData = {
+            ...appUserData,
+            username: firestoreData.username,
+            role: firestoreData.role,
+          };
+          setUsername(firestoreData.username || null);
+          setRole(firestoreData.role || null);
+        } else {
+          console.warn("User exists in Auth but not in Firestore:", firebaseUser.uid);
+          setUsername(null);
+          setRole(null);
         }
+        setUser(appUserData);
       } else {
         setUser(null);
         setUsername(null);
+        setRole(null);
       }
       setLoading(false);
     });
@@ -47,10 +68,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await firebaseSignOut(auth);
     setUser(null);
     setUsername(null);
+    setRole(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, username, loading, signOut }}>
+    <AuthContext.Provider value={{ user, username, role, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

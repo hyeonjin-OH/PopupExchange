@@ -44,12 +44,38 @@ export const getUserByUsername = async (username: string) => {
       return null;
     }
 
+    const userData = querySnapshot.docs[0].data();
     return {
-      ...querySnapshot.docs[0].data(),
-      uid: querySnapshot.docs[0].id
+      uid: querySnapshot.docs[0].id,
+      username: userData.username,
+      role: userData.role,
     };
   } catch (error) {
     console.error('Error getting user by username:', error);
+    throw error;
+  }
+};
+
+// UID로 사용자 정보 가져오기
+export const getUserById = async (userId: string) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    
+    if (!userSnap.exists()) {
+      console.log('No such user document!');
+      return null;
+    }
+
+    return {
+      uid: userId,
+      ...userSnap.data()
+      // Explicitly define expected fields if needed, e.g.:
+      // username: userSnap.data().username,
+      // role: userSnap.data().role,
+    };
+  } catch (error) {
+    console.error('Error getting user by ID:', error);
     throw error;
   }
 };
@@ -124,25 +150,31 @@ export const signIn = async (username: string, password: string) => {
 };
 
 // 채팅 관련 함수들
-export const createChatRoom = async (postId: string, userId: string) => {
+export const createChatRoom = async (postId: string, user1Id: string, user2Id: string) => {
   try {
-    const chatId = `${postId}_${userId}`;
+    const sortedUserIds = [user1Id, user2Id].sort();
+    const chatId = `${postId}_${sortedUserIds[0]}_${sortedUserIds[1]}`;
     const chatRef = doc(db, 'chats', chatId);
-    await setDoc(chatRef, {
-      postId,
-      userId,
-      createdAt: new Date().toISOString(),
-    });
+    const chatSnap = await getDoc(chatRef);
+
+    if (!chatSnap.exists()) { // 채팅방이 존재하지 않을 경우에만 생성
+      await setDoc(chatRef, {
+        postId,
+        participants: sortedUserIds, // 참여자 ID 저장
+        createdAt: new Date().toISOString(),
+      });
+    }
     return chatId;
   } catch (error) {
-    console.error('Error creating chat room:', error);
+    console.error('Error creating/getting chat room:', error);
     throw error;
   }
 };
 
-export const getChatRoom = async (postId: string, userId: string) => {
+export const getChatRoom = async (postId: string, user1Id: string, user2Id: string): Promise<string | null> => {
   try {
-    const chatId = `${postId}_${userId}`;
+    const sortedUserIds = [user1Id, user2Id].sort();
+    const chatId = `${postId}_${sortedUserIds[0]}_${sortedUserIds[1]}`;
     const chatRef = doc(db, 'chats', chatId);
     const snapshot = await getDoc(chatRef);
     if (snapshot.exists()) {
@@ -155,31 +187,37 @@ export const getChatRoom = async (postId: string, userId: string) => {
   }
 };
 
-export const saveChatMessage = async (chatId: string, message: any) => {
+export const saveChatMessage = async (chatId: string, message: Omit<Message, 'id'>) => { // Use Omit<Message, 'id'> for type safety
   try {
-    const chatRef = doc(db, 'chats', chatId, 'messages', message.id);
-    await setDoc(chatRef, {
+    // Firestore allows generating document IDs automatically when using addDoc
+    const messagesRef = collection(db, 'chats', chatId, 'messages');
+    const messageDocRef = await addDoc(messagesRef, {
       ...message,
-      timestamp: new Date().toISOString(),
+      timestamp: message.timestamp || new Date().toISOString(), // Ensure timestamp exists
     });
-    return message.id;
+    return messageDocRef.id; // Return the auto-generated ID
   } catch (error) {
     console.error('Error saving chat message:', error);
     throw error;
   }
 };
 
-export const getChatMessages = async (chatId: string) => {
+export const getChatMessages = async (chatId: string): Promise<Message[]> => { // Return Promise<Message[]>
   try {
     const messagesRef = collection(db, 'chats', chatId, 'messages');
-    const querySnapshot = await getDocs(messagesRef);
+    // Order messages by timestamp
+    const q = query(messagesRef, orderBy('timestamp', 'asc'));
+    const querySnapshot = await getDocs(q);
     const messages: Message[] = [];
     querySnapshot.forEach((doc) => {
-      const message = doc.data() as Message;
+      const data = doc.data();
       messages.push({
-        ...message,
         id: doc.id,
-      });
+        sender: data.sender,
+        senderId: data.senderId,
+        text: data.text,
+        timestamp: data.timestamp
+      } as Message); // Type assertion
     });
     return messages;
   } catch (error) {

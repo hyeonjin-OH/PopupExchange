@@ -7,7 +7,6 @@ import { db } from '@/lib/firebase';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import ChatRoom from '@/components/chat/ChatRoom';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Post {
@@ -30,19 +29,23 @@ export default function PostDetailPage() {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        const postDoc = await getDoc(doc(db, 'posts', params.id as string));
+        const postId = params.id as string;
+        if (!postId) return;
+        const postDoc = await getDoc(doc(db, 'posts', postId));
         if (postDoc.exists()) {
           const data = postDoc.data();
+          const authorId = data.authorId || (typeof data.author === 'string' && data.author.includes('_') ? data.author.split('_')[1] : data.author);
           setPost({
             id: postDoc.id,
             ...data,
-            authorId: data.authorId || data.author,
+            authorId: authorId,
           } as Post);
+        } else {
+          console.log("No such document!");
         }
       } catch (error) {
         console.error('Error fetching post:', error);
@@ -53,6 +56,28 @@ export default function PostDetailPage() {
 
     fetchPost();
   }, [params.id]);
+
+  const handleChatClick = () => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    if (!post || !post.authorId) {
+        console.error('Post or author information is missing.');
+        return;
+    }
+    if (user.uid === post.authorId) {
+      console.log("Cannot chat with yourself.");
+      return;
+    }
+
+    const user1Id = user.uid;
+    const user2Id = post.authorId;
+    const sortedUserIds = [user1Id, user2Id].sort();
+    const chatId = `${post.id}_${sortedUserIds[0]}_${sortedUserIds[1]}`;
+
+    router.push(`/chat/${chatId}`);
+  };
 
   if (loading) {
     return (
@@ -106,7 +131,7 @@ export default function PostDetailPage() {
               <div>
                 <h1 className="text-2xl font-bold mb-2">{post.title}</h1>
                 <div className="flex items-center text-sm text-gray-500">
-                  <span>{post.author.includes('@') ? post.author.split('@')[0] : post.author}</span>
+                  <span>{post.author?.includes('@') ? post.author.split('@')[0] : post.author}</span>
                   <span className="mx-2">·</span>
                   <span>{new Date(post.createdAt).toLocaleDateString()}</span>
                 </div>
@@ -121,7 +146,7 @@ export default function PostDetailPage() {
               </div>
             </div>
 
-            {post.price !== undefined && (
+            {post.price !== undefined && post.tradeType !== '교환' && (
               <div className="mb-6">
                 <p className="text-2xl font-bold">
                   {post.price.toLocaleString()}원
@@ -133,41 +158,52 @@ export default function PostDetailPage() {
               <p className="text-gray-800 whitespace-pre-wrap">{post.content}</p>
             </div>
 
-            <div className="mt-8 flex justify-between">
-              <Button
-                variant="outline"
-                onClick={() => router.push('/posts')}
-              >
-                목록으로
-              </Button>
-              <div className="flex space-x-4">
-                {user?.uid === post?.authorId ? (
-                  <Button
-                    className="bg-blue-500 hover:bg-blue-600 text-white"
-                    onClick={() => router.push(`/posts/${post.id}/edit`)}
-                  >
-                    수정하기
-                  </Button>
-                ) : (
-                  <Button
-                    className="bg-[#FFE34F] hover:bg-[#FFD700] text-black"
-                    onClick={() => setShowChat(true)}
-                  >
-                    채팅하기
-                  </Button>
-                )}
-              </div>
+            <div className="mt-8 flex justify-between items-center border-t pt-6">
+                <div className="flex items-center gap-4">
+                    <Button
+                        variant="outline"
+                        onClick={() => router.push('/posts')}
+                    >
+                        목록으로
+                    </Button>
+                    {post.price !== undefined && post.tradeType !== '교환' && (
+                        <p className="text-xl font-bold">
+                            {post.price.toLocaleString()}원
+                        </p>
+                    )}
+                </div>
+
+                <div className="flex space-x-4">
+                    {user?.uid === post.authorId && (
+                        <Button
+                            variant="outline"
+                            onClick={() => router.push(`/posts/${post.id}/edit`)}
+                        >
+                            수정하기
+                        </Button>
+                    )}
+
+                    {user && user.uid !== post.authorId && (
+                        <Button
+                            className="bg-[#FFE34F] hover:bg-[#FFD700] text-black"
+                            onClick={handleChatClick}
+                        >
+                            채팅하기
+                        </Button>
+                    )}
+                    {!user && (
+                        <Button
+                            className="bg-[#FFE34F] hover:bg-[#FFD700] text-black"
+                            onClick={() => router.push('/login')}
+                        >
+                            로그인 후 채팅하기
+                        </Button>
+                    )
+                    }
+                </div>
             </div>
           </div>
         </Card>
-
-        {showChat && post && (
-          <ChatRoom
-            postId={post.id}
-            postAuthorId={post.authorId}
-            onClose={() => setShowChat(false)}
-          />
-        )}
       </div>
     </main>
   );

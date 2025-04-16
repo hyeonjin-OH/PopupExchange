@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 interface PopupStore {
   id: string;
@@ -86,83 +90,81 @@ export default function AdminDashboard() {
     <div className="max-w-6xl mx-auto p-6">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">팝업스토어 관리</h1>
-        <button
+        <Button
           onClick={() => setShowAddForm(true)}
-          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
         >
           새 팝업스토어 추가
-        </button>
+        </Button>
       </div>
 
       {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-2xl font-bold mb-4">새 팝업스토어 추가</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+            <h2 className="text-2xl font-bold mb-6">새 팝업스토어 추가</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">스토어명</label>
-                <input
+                <Label htmlFor="storeName">스토어명</Label>
+                <Input
+                  id="storeName"
                   type="text"
                   value={newStore.name}
                   onChange={(e) => setNewStore({ ...newStore, name: e.target.value })}
-                  className="w-full border rounded-lg p-2"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">위치</label>
-                <input
+                <Label htmlFor="location">위치</Label>
+                <Input
+                  id="location"
                   type="text"
                   value={newStore.location}
                   onChange={(e) => setNewStore({ ...newStore, location: e.target.value })}
-                  className="w-full border rounded-lg p-2"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">시작일</label>
-                <input
+                <Label htmlFor="startDate">시작일</Label>
+                <Input
+                  id="startDate"
                   type="date"
                   value={newStore.startDate}
                   onChange={(e) => setNewStore({ ...newStore, startDate: e.target.value })}
-                  className="w-full border rounded-lg p-2"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">종료일</label>
-                <input
+                <Label htmlFor="endDate">종료일</Label>
+                <Input
+                  id="endDate"
                   type="date"
                   value={newStore.endDate}
                   onChange={(e) => setNewStore({ ...newStore, endDate: e.target.value })}
-                  className="w-full border rounded-lg p-2"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">설명</label>
-                <textarea
+                <Label htmlFor="description">설명</Label>
+                <Textarea
+                  id="description"
                   value={newStore.description}
                   onChange={(e) => setNewStore({ ...newStore, description: e.target.value })}
-                  className="w-full border rounded-lg p-2"
                   rows={3}
                   required
                 />
               </div>
-              <div className="flex justify-end space-x-4">
-                <button
+              <div className="flex justify-end space-x-4 pt-4">
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
                 >
                   취소
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
                 >
                   추가
-                </button>
+                </Button>
               </div>
             </form>
           </div>
