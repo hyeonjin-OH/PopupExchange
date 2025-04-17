@@ -23,8 +23,6 @@ interface Chat {
   id: string;
   postId: string;
   postTitle: string;
-  lastMessage: string;
-  lastMessageTime: string;
 }
 
 export default function ProfilePage() {
@@ -72,9 +70,7 @@ export default function ProfilePage() {
             return {
               id: doc.id,
               postId: chatData.postId,
-              postTitle,
-              lastMessage: chatData.lastMessage || '',
-              lastMessageTime: chatData.lastMessageTime || ''
+              postTitle
             };
           })
         );
@@ -158,9 +154,6 @@ export default function ProfilePage() {
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="font-medium">{chat.postTitle}</h3>
-                          <p className="text-sm text-gray-500">
-                            마지막 메시지: {new Date(chat.lastMessage?.timestamp || chat.createdAt).toLocaleString()}
-                          </p>
                         </div>
                         <Button
                           variant="ghost"
