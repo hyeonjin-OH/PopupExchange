@@ -35,20 +35,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
         let appUserData: AppUser = { ...firebaseUser };
-
-        if (userDoc.exists()) {
-          const firestoreData = userDoc.data();
-          appUserData = {
-            ...appUserData,
-            username: firestoreData.username,
-            role: firestoreData.role,
-          };
-          setUsername(firestoreData.username || null);
-          setRole(firestoreData.role || null);
-        } else {
-          console.warn("User exists in Auth but not in Firestore:", firebaseUser.uid);
+        try {
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
+            const firestoreData = userDoc.data();
+            appUserData = {
+              ...appUserData,
+              username: firestoreData.username,
+              role: firestoreData.role,
+            };
+            setUsername(firestoreData.username || null);
+            setRole(firestoreData.role || null);
+          } else {
+            console.warn("User exists in Auth but not in Firestore:", firebaseUser.uid);
+            setUsername(null);
+            setRole(null);
+          }
+        } catch (error) {
+          console.error("Error fetching user document in AuthContext:", error);
           setUsername(null);
           setRole(null);
         }
