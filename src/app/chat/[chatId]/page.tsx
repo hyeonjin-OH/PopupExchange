@@ -270,44 +270,48 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
+    <div className="min-h-screen bg-[#F8F9FA] flex flex-col">
       <ChatHeader chatId={chatId} ws={ws} isConnected={isConnected} router={router} />
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <Card className="bg-white p-6 shadow-lg rounded-lg">
+      <div className="flex-1 max-w-4xl w-full mx-auto px-4 py-4 flex flex-col">
+        <Card className="bg-white shadow-lg rounded-lg flex-1 flex flex-col">
           {/* 메시지 목록 */}
-          <div className="space-y-4 h-[500px] overflow-y-auto mb-6">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.senderId === user.uid ? 'justify-end' : 'justify-start'}`}
-              >
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="space-y-4">
+              {messages.map((message) => (
                 <div
-                  className={`max-w-[70%] p-3 rounded-lg ${
-                    message.senderId === user.uid
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-900'
-                  }`}
+                  key={message.id}
+                  className={`flex ${message.senderId === user.uid ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div>{message.text}</div>
-                  <div className="text-xs mt-1 opacity-70">
-                    {new Date(message.timestamp).toLocaleTimeString()}
+                  <div
+                    className={`max-w-[70%] p-3 rounded-lg ${
+                      message.senderId === user.uid
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-900'
+                    }`}
+                  >
+                    <div>{message.text}</div>
+                    <div className="text-xs mt-1 opacity-70">
+                      {new Date(message.timestamp).toLocaleTimeString()}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
 
           {/* 메시지 입력 */}
-          <div className="flex gap-2">
-            <Input
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="메시지를 입력하세요..."
-              className="flex-1"
-            />
-            <Button onClick={handleSendMessage}>전송</Button>
+          <div className="p-4 border-t">
+            <div className="flex gap-2">
+              <Input
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="메시지를 입력하세요..."
+                className="flex-1"
+              />
+              <Button onClick={handleSendMessage}>전송</Button>
+            </div>
           </div>
         </Card>
       </div>
