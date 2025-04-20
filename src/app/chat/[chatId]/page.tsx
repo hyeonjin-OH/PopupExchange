@@ -90,26 +90,23 @@ function ChatHeader({ chatId, ws, isConnected, router }: ChatHeaderProps) {
   return (
     <header className="sticky top-0 z-10 bg-white border-b p-4 flex items-center justify-between">
       <div className="flex items-center">
-        <Button variant="ghost" size="icon" onClick={handleGoToList} className="mr-2" aria-label="Back to posts">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-          </svg>
-        </Button>
         <div>
-            <h1 className="text-lg font-semibold leading-tight">
-                {isLoading ? '로딩중...' : opponentUsername || '상대방'}
-            </h1>
-            {postTitle && !isLoading && (
-                <p className="text-sm text-gray-500 leading-tight truncate max-w-xs">{postTitle}</p>
-            )}
+          <h1 className="text-lg font-semibold leading-tight">
+            {isLoading ? '로딩중...' : postTitle || '채팅'}
+          </h1>
+          {opponentUsername && !isLoading && (
+            <p className="text-sm text-gray-500 leading-tight truncate max-w-xs">
+              {opponentUsername}님과의 채팅
+            </p>
+          )}
         </div>
       </div>
       <div className="flex flex-col space-y-1 items-end">
         <Button variant="outline" size="sm" onClick={handleLeaveChat}>
-            채팅 나가기
+          채팅 나가기
         </Button>
         <Button variant="ghost" size="sm" onClick={handleGoToList} className="text-gray-600">
-            목록으로
+          목록으로
         </Button>
       </div>
     </header>
@@ -274,7 +271,6 @@ export default function ChatPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA]">
-      <Navbar />
       <ChatHeader chatId={chatId} ws={ws} isConnected={isConnected} router={router} />
       <div className="max-w-4xl mx-auto px-4 py-8">
         <Card className="bg-white p-6 shadow-lg rounded-lg">
