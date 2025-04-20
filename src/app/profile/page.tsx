@@ -48,15 +48,24 @@ export default function ProfilePage() {
     const fetchUserData = async () => {
       try {
         // 사용자의 게시글 가져오기
+        console.log('Fetching posts for user:', user.uid);
         const postsQuery = query(
           collection(db, 'posts'),
-          where('authorId', '==', user.uid)
+          where('author', '==', user.uid)
         );
         const postsSnapshot = await getDocs(postsQuery);
-        const postsData = postsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Post[];
+        console.log('Posts snapshot:', postsSnapshot);
+        console.log('Posts snapshot docs:', postsSnapshot.docs);
+        
+        const postsData = postsSnapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log('Post data:', data);
+          return {
+            id: doc.id,
+            ...data
+          };
+        }) as Post[];
+        console.log('Processed posts data:', postsData);
         setPosts(postsData);
 
         // 사용자의 채팅 목록 가져오기
@@ -130,13 +139,9 @@ export default function ProfilePage() {
             {/* 사용자 정보 */}
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-                <span className="text-2xl text-gray-600">
-                  {user?.username?.charAt(0).toUpperCase()}
-                </span>
               </div>
               <div>
                 <h1 className="text-2xl font-bold">{user?.username}</h1>
-                <p className="text-gray-500">{user?.email}</p>
               </div>
             </div>
 
