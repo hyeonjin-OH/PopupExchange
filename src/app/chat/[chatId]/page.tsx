@@ -4,12 +4,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getChatMessages, saveChatMessage, getUserById, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection, query, orderBy } from 'firebase/firestore';
 import { Message } from '@/types/chat';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+import Navbar from '@/components/Navbar';
+import { Card } from '@/components/ui/card';
 
 // Updated ChatHeader Props
 interface ChatHeaderProps {
@@ -117,13 +119,19 @@ function ChatHeader({ chatId, ws, isConnected, router }: ChatHeaderProps) {
 export default function ChatPage() {
   const params = useParams();
   const chatId = params.chatId as string;
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -134,13 +142,20 @@ export default function ChatPage() {
   }, [messages, scrollToBottom]);
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId || !user) return;
     const fetchMessages = async () => {
-      const loadedMessages = await getChatMessages(chatId);
-      setMessages(loadedMessages);
+      try {
+        const loadedMessages = await getChatMessages(chatId);
+        setMessages(loadedMessages);
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+        if (error instanceof Error && error.message.includes('auth/invalid-credential')) {
+          router.push('/login');
+        }
+      }
     };
     fetchMessages();
-  }, [chatId]);
+  }, [chatId, user, router]);
 
   useEffect(() => {
     if (!chatId || !user) return;
@@ -161,15 +176,18 @@ export default function ChatPage() {
         console.log("Message received:", data);
         if (data.type === 'message' && data.chatId === chatId) {
           if (data.senderId && data.sender && data.text && data.timestamp) {
-             setMessages(prev => {
-               if (data.id && prev.some(msg => msg.id === data.id)) {
-                 return prev;
-               }
-               const newMessage = { ...data, id: data.id || 'ws-' + Date.now() } as Message;
-               return [...prev, newMessage];
-             });
+            // 내가 보낸 메시지는 이미 로컬 상태에 있으므로 무시합니다
+            if (data.senderId === user.uid) return;
+            
+            setMessages(prev => {
+              if (data.id && prev.some(msg => msg.id === data.id)) {
+                return prev;
+              }
+              const newMessage = { ...data, id: data.id || 'ws-' + Date.now() } as Message;
+              return [...prev, newMessage];
+            });
           } else {
-             console.warn("Received incomplete message structure:", data);
+            console.warn("Received incomplete message structure:", data);
           }
         }
       } catch (error) {
@@ -203,8 +221,8 @@ export default function ChatPage() {
     e.preventDefault();
     if (!newMessage.trim() || !chatId || !user || !ws || !isConnected) return;
 
-    const localMessageText = newMessage.trim(); // Store text before clearing
-    setNewMessage(''); // Clear input immediately for better UX
+    const localMessageText = newMessage.trim();
+    setNewMessage('');
 
     const messageData: Omit<Message, 'id'> = {
       text: localMessageText,
@@ -215,90 +233,87 @@ export default function ChatPage() {
     };
 
     try {
-      // Send via WebSocket (others receive this)
+      // Firestore에 먼저 저장하고 ID를 받아옵니다
+      const savedMessageId = await saveChatMessage(chatId, messageData);
+      const messageForUI: Message = { 
+        ...messageData, 
+        id: savedMessageId 
+      };
+
+      // 로컬 상태에 메시지를 추가합니다
+      setMessages(prev => [...prev, messageForUI]);
+
+      // WebSocket으로 메시지를 보냅니다
       ws.send(JSON.stringify({
         type: 'message',
         chatId,
-        ...messageData
+        ...messageForUI
       }));
-
-      // Save message to Firestore and get the generated ID
-      const savedMessageId = await saveChatMessage(chatId, messageData);
-
-      // --- Optimistic Update for Sender --- 
-      // Create the full message object including the ID from Firestore
-      const messageForUI: Message = { 
-          ...messageData, 
-          id: savedMessageId 
-      };
-      // Add the message to the local state to display it immediately
-      setMessages(prev => [...prev, messageForUI]);
-      // --- End Optimistic Update ---
-
     } catch (error) {
       console.error('Error sending or saving message:', error);
-      // Optional: Restore input field content if sending failed
-      // setNewMessage(localMessageText);
-      // TODO: Show error feedback to the user
+      if (error instanceof Error && error.message.includes('auth/invalid-credential')) {
+        router.push('/login');
+      }
     }
   };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(e as any);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-4 text-center">로딩 중...</div>;
+  }
 
   if (!user) {
     return <div className="p-4 text-center">로그인이 필요합니다.</div>;
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
+    <div className="min-h-screen bg-[#F8F9FA]">
+      <Navbar />
       <ChatHeader chatId={chatId} ws={ws} isConnected={isConnected} router={router} />
-
-      {/* Message List Area - Adjusted padding class */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {messages.map((message) => {
-          const isSender = message.senderId === user.uid;
-          return (
-            // Row container - Using arbitrary value for padding
-            <div key={message.id || message.timestamp} className="p-[4px]">
-              {/* Alignment container */}
-              <div className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
-                {/* Content container (timestamp + bubble) */}
-                <div className={`inline-flex items-end gap-2`}> 
-                  {/* Timestamp */}
-                  <div className="text-[10px] text-gray-500 pb-0.5 whitespace-nowrap">
-                    {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                  {/* Message Bubble */}
-                  <div
-                    className={`max-w-[calc(100%-4rem)] sm:max-w-[85%] p-3 rounded-lg shadow-sm ${isSender ? 'bg-[#FFE34F] text-black rounded-br-none' : 'bg-white text-black rounded-bl-none'}`}
-                  >
-                    <p className="text-base break-words">{message.text}</p>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <Card className="bg-white p-6 shadow-lg rounded-lg">
+          {/* 메시지 목록 */}
+          <div className="space-y-4 h-[500px] overflow-y-auto mb-6">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.senderId === user.uid ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[70%] p-3 rounded-lg ${
+                    message.senderId === user.uid
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-900'
+                  }`}
+                >
+                  <div>{message.text}</div>
+                  <div className="text-xs mt-1 opacity-70">
+                    {new Date(message.timestamp).toLocaleTimeString()}
                   </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-        <div ref={messagesEndRef} />
-      </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
 
-      {/* Input Area (remains the same) */}
-      <div className="bg-white p-4 border-t sticky bottom-0">
-        <form onSubmit={handleSendMessage} className="flex gap-2">
-          <Input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="메시지를 입력하세요..."
-            className="flex-1"
-            autoComplete="off"
-            disabled={!isConnected}
-          />
-          <Button type="submit" disabled={!newMessage.trim() || !isConnected}>
-            전송
-          </Button>
-        </form>
-        {!isConnected && (
-            <p className="text-xs text-red-500 mt-1 text-center">연결 중이거나 끊어졌습니다...</p>
-        )}
+          {/* 메시지 입력 */}
+          <div className="flex gap-2">
+            <Input
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="메시지를 입력하세요..."
+              className="flex-1"
+            />
+            <Button onClick={handleSendMessage}>전송</Button>
+          </div>
+        </Card>
       </div>
     </div>
   );

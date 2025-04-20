@@ -8,6 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import ChatRoom from '@/components/chat/ChatRoom';
+import { createPortal } from 'react-dom';
 
 interface Post {
   id: string;
@@ -23,6 +25,7 @@ interface Chat {
   id: string;
   postId: string;
   postTitle: string;
+  otherUserId: string;  // 채팅 상대방 ID
 }
 
 export default function ProfilePage() {
@@ -31,6 +34,7 @@ export default function ProfilePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -63,7 +67,7 @@ export default function ProfilePage() {
         
         const chatsData = await Promise.all(
           chatsSnapshot.docs.map(async chatDoc => {
-            const chatData = chatDoc.data() as { postId: string };
+            const chatData = chatDoc.data();
             console.log('chatData:', chatData);
             
             const postDoc = await getDoc(doc(db, 'posts', chatData.postId));
@@ -71,11 +75,15 @@ export default function ProfilePage() {
             
             const postData = postDoc.data() as { title: string } | undefined;
             const postTitle = postData?.title || '제목 없음';
+
+            // 채팅 상대방 ID 찾기
+            const otherUserId = chatData.participants.find((id: string) => id !== user.uid) || '';
             
             return {
               id: chatDoc.id,
               postId: chatData.postId,
-              postTitle
+              postTitle,
+              otherUserId
             };
           })
         );
@@ -90,6 +98,10 @@ export default function ProfilePage() {
 
     fetchUserData();
   }, [user, router]);
+
+  const handleChatClose = () => {
+    setActiveChatId(null);
+  };
 
   if (loading) {
     return (
@@ -164,7 +176,7 @@ export default function ProfilePage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => router.push(`/posts/${chat.postId}`)}
+                          onClick={() => router.push(`/chat/${chat.id}`)}
                         >
                           채팅하기
                         </Button>
@@ -178,6 +190,16 @@ export default function ProfilePage() {
             </div>
           </div>
         </Card>
+
+        {/* 채팅방 */}
+        {activeChatId && createPortal(
+          <ChatRoom
+            postId={chats.find(chat => chat.id === activeChatId)?.postId || ''}
+            postAuthorId={chats.find(chat => chat.id === activeChatId)?.otherUserId || ''}
+            onClose={handleChatClose}
+          />,
+          document.body
+        )}
       </div>
     </main>
   );
