@@ -144,6 +144,30 @@ export default function ChatPage() {
       try {
         const loadedMessages = await getChatMessages(chatId);
         setMessages(loadedMessages);
+
+        // 실시간 리스너 설정
+        const chatRef = doc(db, 'chats', chatId);
+        const messagesRef = collection(chatRef, 'messages');
+        const q = query(messagesRef, orderBy('timestamp', 'asc'));
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const newMessages = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Message[];
+          
+          // 내가 보낸 메시지는 이미 로컬 상태에 있으므로 무시
+          setMessages(prev => {
+            const filteredMessages = newMessages.filter(newMsg => 
+              !prev.some(prevMsg => prevMsg.id === newMsg.id)
+            );
+            return [...prev, ...filteredMessages];
+          });
+        });
+
+        return () => {
+          unsubscribe();
+        };
       } catch (error) {
         console.error('Error fetching messages:', error);
         if (error instanceof Error && error.message.includes('auth/invalid-credential')) {
