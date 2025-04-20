@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -58,22 +58,28 @@ export default function ProfilePage() {
           where('participants', 'array-contains', user.uid)
         );
         const chatsSnapshot = await getDocs(chatsQuery);
+        console.log('chatsSnapshot:', chatsSnapshot);
+        console.log('chatsSnapshot.docs:', chatsSnapshot.docs);
+        
         const chatsData = await Promise.all(
-          chatsSnapshot.docs.map(async doc => {
-            const chatData = doc.data();
-            const postDoc = await getDocs(query(
-              collection(db, 'posts'),
-              where('id', '==', chatData.postId)
-            ));
-            const postTitle = postDoc.docs[0]?.data().title || '제목 없음';
+          chatsSnapshot.docs.map(async chatDoc => {
+            const chatData = chatDoc.data() as { postId: string };
+            console.log('chatData:', chatData);
+            
+            const postDoc = await getDoc(doc(db, 'posts', chatData.postId));
+            console.log('postDoc:', postDoc);
+            
+            const postData = postDoc.data() as { title: string } | undefined;
+            const postTitle = postData?.title || '제목 없음';
             
             return {
-              id: doc.id,
+              id: chatDoc.id,
               postId: chatData.postId,
               postTitle
             };
           })
         );
+        console.log('chatsData:', chatsData);
         setChats(chatsData);
       } catch (error) {
         console.error('Error fetching user data:', error);
