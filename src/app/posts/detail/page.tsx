@@ -137,15 +137,22 @@ export default function PostDetailPage() {
               <div>
                 <h1 className="text-2xl font-bold mb-2">{post.title}</h1>
                 <div className="flex items-center text-sm text-gray-500">
-                  <span>{post.author?.includes('@') ? post.author.split('@')[0] : post.author}</span>
-                  <span className="mx-2">·</span>
-                  <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                  <span>작성자 : {post.author?.includes('@') ? post.author.split('@')[0] : post.author} &nbsp;&nbsp;&nbsp;</span>
+                  <span>작성일 : {new Date(post.createdAt).toLocaleString('ko-KR', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                  }).replace(/\. /g, '-').replace(':', ':').replace(/-(\d{2}):/, ' $1:')}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="px-3 py-1 text-sm rounded-full bg-gray-100">
                   {post.tradeType}
                 </span>
+                <span className="mx-2">&nbsp;&nbsp;/&nbsp;&nbsp;</span>
                 <span className="px-3 py-1 text-sm rounded-full bg-gray-100">
                   {post.tradeMethod}
                 </span>
@@ -155,7 +162,7 @@ export default function PostDetailPage() {
             {post.price !== undefined && post.tradeType !== '교환' && (
               <div className="mb-6">
                 <p className="text-2xl font-bold">
-                  {post.price.toLocaleString()}원
+                  가격 : {post.price.toLocaleString()}원
                 </p>
               </div>
             )}
@@ -172,11 +179,6 @@ export default function PostDetailPage() {
                     >
                         목록으로
                     </Button>
-                    {post.price !== undefined && post.tradeType !== '교환' && (
-                        <p className="text-xl font-bold">
-                            {post.price.toLocaleString()}원
-                        </p>
-                    )}
                 </div>
 
                 <div className="flex space-x-4">
