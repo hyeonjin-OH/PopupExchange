@@ -113,7 +113,14 @@ export default function PostsPage() {
                   <div>
                     <h2 className="text-xl font-semibold mb-1">{post.title}</h2>
                     <p className="text-sm text-gray-500">
-                      {post.authorUsername}님 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;작성일 : {new Date(post.createdAt).toLocaleDateString()}
+                      {post.authorUsername}님 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;작성일 : {new Date(post.createdAt).toLocaleString('ko-KR', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                      }).replace(/\. /g, '-').replace(':', ':').replace(/-(\d{2}):/, ' $1:')}
                     </p>
                   </div>
                   <span className="text-sm text-gray-500">
