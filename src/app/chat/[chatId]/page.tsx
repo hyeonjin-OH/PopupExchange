@@ -123,6 +123,7 @@ export default function ChatPage() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const processedMessageIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!loading && !user) {
@@ -138,11 +139,22 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  const addMessage = useCallback((message: Message) => {
+    if (processedMessageIds.current.has(message.id)) {
+      return;
+    }
+    processedMessageIds.current.add(message.id);
+    setMessages(prev => [...prev, message]);
+  }, []);
+
   useEffect(() => {
     if (!chatId || !user) return;
     const fetchMessages = async () => {
       try {
         const loadedMessages = await getChatMessages(chatId);
+        loadedMessages.forEach(message => {
+          processedMessageIds.current.add(message.id);
+        });
         setMessages(loadedMessages);
 
         // 실시간 리스너 설정
@@ -156,12 +168,10 @@ export default function ChatPage() {
             ...doc.data()
           })) as Message[];
           
-          // 내가 보낸 메시지는 이미 로컬 상태에 있으므로 무시
-          setMessages(prev => {
-            const filteredMessages = newMessages.filter(newMsg => 
-              !prev.some(prevMsg => prevMsg.id === newMsg.id)
-            );
-            return [...prev, ...filteredMessages];
+          newMessages.forEach(message => {
+            if (!processedMessageIds.current.has(message.id)) {
+              addMessage(message);
+            }
           });
         });
 
@@ -176,7 +186,7 @@ export default function ChatPage() {
       }
     };
     fetchMessages();
-  }, [chatId, user, router]);
+  }, [chatId, user, router, addMessage]);
 
   useEffect(() => {
     if (!chatId || !user) return;
@@ -200,13 +210,12 @@ export default function ChatPage() {
             // 내가 보낸 메시지는 이미 로컬 상태에 있으므로 무시합니다
             if (data.senderId === user.uid) return;
             
-            setMessages(prev => {
-              if (data.id && prev.some(msg => msg.id === data.id)) {
-                return prev;
-              }
-              const newMessage = { ...data, id: data.id || 'ws-' + Date.now() } as Message;
-              return [...prev, newMessage];
-            });
+            const newMessage = { 
+              ...data, 
+              id: data.id || `ws-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` 
+            } as Message;
+            
+            addMessage(newMessage);
           } else {
             console.warn("Received incomplete message structure:", data);
           }
@@ -236,7 +245,7 @@ export default function ChatPage() {
       }
       setIsConnected(false);
     };
-  }, [chatId, user]);
+  }, [chatId, user, addMessage]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,7 +256,6 @@ export default function ChatPage() {
 
     const messageData: Omit<Message, 'id'> = {
       text: localMessageText,
-      // @ts-ignore
       sender: user.username || user.email?.split('@')[0] || '익명',
       senderId: user.uid,
       timestamp: new Date().toISOString(),
@@ -262,7 +270,7 @@ export default function ChatPage() {
       };
 
       // 로컬 상태에 메시지를 추가합니다
-      setMessages(prev => [...prev, messageForUI]);
+      addMessage(messageForUI);
 
       // WebSocket으로 메시지를 보냅니다
       ws.send(JSON.stringify({
@@ -303,7 +311,7 @@ export default function ChatPage() {
             <div className="space-y-4">
               {messages.map((message) => (
                 <div
-                  key={message.id}
+                  key={`${message.id}-${message.timestamp}`}
                   className={`flex ${message.senderId === user.uid ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
