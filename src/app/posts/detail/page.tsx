@@ -81,7 +81,8 @@ export default function PostDetailPage() {
     const sortedUserIds = [user1Id, user2Id].sort();
     const chatId = `${post.id}_${sortedUserIds[0]}_${sortedUserIds[1]}`;
 
-    router.push(`/chat/${chatId}`);
+    sessionStorage.setItem('currentChatId', chatId);
+    router.push('/chat');
   };
 
   if (loading) {
@@ -182,10 +183,7 @@ export default function PostDetailPage() {
                     {user?.uid === post.authorId && (
                         <Button
                             variant="outline"
-                            onClick={() => {
-                                sessionStorage.setItem('currentPostId', post.id);
-                                router.push('/posts/edit');
-                            }}
+                            onClick={() => router.push(`/posts/${post.id}/edit`)}
                         >
                             수정하기
                         </Button>
