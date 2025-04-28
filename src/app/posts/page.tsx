@@ -37,10 +37,36 @@ export default function PostsPage() {
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const postsQuery = query(
+        let postsQuery = query(
           collection(db, 'posts'),
           orderBy('createdAt', 'desc')
         );
+
+        // 검색어가 있는 경우 제목으로 검색
+        if (searchTerm) {
+          postsQuery = query(
+            collection(db, 'posts'),
+            where('title', '>=', searchTerm),
+            where('title', '<=', searchTerm + '\uf8ff')
+          );
+        }
+
+        // 교환방식이 선택된 경우
+        if (selectedTradeType) {
+          postsQuery = query(
+            postsQuery,
+            where('tradeType', '==', selectedTradeType)
+          );
+        }
+
+        // 거래방식이 선택된 경우
+        if (selectedTradeMethod) {
+          postsQuery = query(
+            postsQuery,
+            where('tradeMethod', '==', selectedTradeMethod)
+          );
+        }
+
         const postsSnapshot = await getDocs(postsQuery);
         
         const postsData = await Promise.all(
@@ -73,7 +99,14 @@ export default function PostsPage() {
           })
         );
         
-        setPosts(postsData);
+        // 검색어가 있는 경우 클라이언트 측에서 추가 필터링
+        const filteredPosts = searchTerm
+          ? postsData.filter(post => 
+              post.title.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+          : postsData;
+        
+        setPosts(filteredPosts);
       } catch (error) {
         console.error('Error fetching posts:', error);
       } finally {
@@ -82,23 +115,15 @@ export default function PostsPage() {
     };
 
     fetchPosts();
-  }, []);
-
-  // 검색 및 필터링된 게시글 가져오기
-  const filteredPosts = posts.filter(post => {
-    const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTradeType = selectedTradeType === '' || post.tradeType === selectedTradeType;
-    const matchesTradeMethod = selectedTradeMethod === '' || post.tradeMethod === selectedTradeMethod;
-    return matchesSearch && matchesTradeType && matchesTradeMethod;
-  });
+  }, [searchTerm, selectedTradeType, selectedTradeMethod]);
 
   // 현재 페이지의 게시글만 가져오기
   const indexOfLastPost = currentPage * postsPerPage;
   const indexOfFirstPost = indexOfLastPost - postsPerPage;
-  const currentPosts = filteredPosts.slice(indexOfFirstPost, indexOfLastPost);
+  const currentPosts = posts.slice(indexOfFirstPost, indexOfLastPost);
 
   // 총 페이지 수 계산
-  const totalPages = Math.ceil(filteredPosts.length / postsPerPage);
+  const totalPages = Math.ceil(posts.length / postsPerPage);
 
   // 페이지 변경 핸들러
   const handlePageChange = (pageNumber: number) => {
@@ -108,19 +133,32 @@ export default function PostsPage() {
   // 검색어 변경 핸들러
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(1); // 검색 시 첫 페이지로 이동
+  };
+
+  // 엔터 키 이벤트 핸들러
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
   };
 
   // 교환방식 변경 핸들러
   const handleTradeTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedTradeType(e.target.value);
-    setCurrentPage(1); // 필터 변경 시 첫 페이지로 이동
   };
 
   // 거래방식 변경 핸들러
   const handleTradeMethodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedTradeMethod(e.target.value);
-    setCurrentPage(1); // 필터 변경 시 첫 페이지로 이동
+  };
+
+  // 검색 실행 핸들러
+  const handleSearch = () => {
+    const searchParams = new URLSearchParams();
+    if (searchTerm) searchParams.set('q', searchTerm);
+    if (selectedTradeType) searchParams.set('tradeType', selectedTradeType);
+    if (selectedTradeMethod) searchParams.set('tradeMethod', selectedTradeMethod);
+    router.push(`/posts/search?${searchParams.toString()}`);
   };
 
   if (loading) {
@@ -190,10 +228,11 @@ export default function PostsPage() {
                 placeholder="게시글 제목 검색"
                 value={searchTerm}
                 onChange={handleSearchChange}
+                onKeyPress={handleKeyPress}
                 className="flex-1"
               />
               <Button
-                onClick={() => setCurrentPage(1)}
+                onClick={handleSearch}
                 className="bg-[#FFE34F] hover:bg-[#FFD700] text-black"
               >
                 검색
