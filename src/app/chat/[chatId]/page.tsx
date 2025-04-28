@@ -307,7 +307,7 @@ export default function ChatPage() {
       <div className="flex-1 max-w-4xl w-full mx-auto px-4 py-4 flex flex-col">
         <Card className="bg-white shadow-lg rounded-lg flex-1 flex flex-col">
           {/* 메시지 목록 */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4 max-h-[calc(100vh-16rem)]">
             <div className="space-y-4">
               {messages.map((message) => (
                 <div
