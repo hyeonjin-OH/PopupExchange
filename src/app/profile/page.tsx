@@ -203,7 +203,10 @@ export default function ProfilePage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => router.push(`/chat/${chat.id}`)}
+                          onClick={() => {
+                            sessionStorage.setItem('currentChatId', chat.id);
+                            router.push('/chat');
+                          }}
                         >
                           채팅하기
                         </Button>
